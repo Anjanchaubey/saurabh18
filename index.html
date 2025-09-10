@@ -3,65 +3,251 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive 3D Panorama</title>
+    <title>Enhanced Interactive 3D Panorama</title>
     <style>
-        /* Basic CSS to make the canvas fill the entire screen */
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #e74c3c;
+            --text-color: #ecf0f1;
+            --background-color: #000;
+            --loading-bg: rgba(0, 0, 0, 0.9);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             margin: 0;
-            overflow: hidden; /* Prevents scrollbars from appearing */
-            font-family: 'Inter', sans-serif;
-            background-color: #000;
+            overflow: hidden;
+            font-family: 'Inter', 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
         }
+        
         #container {
             width: 100vw;
             height: 100vh;
             display: block;
             cursor: grab;
+            position: relative;
         }
+        
         #container:active {
             cursor: grabbing;
         }
-        /* Simple loading overlay */
+        
         #loading-overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: var(--loading-bg);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.8s ease;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            width: 200px;
+            height: 5px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            width: 0%;
+            background-color: var(--primary-color);
+            transition: width 0.3s ease;
+        }
+        
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 50;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .control-btn {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
             display: flex;
             justify-content: center;
             align-items: center;
-            color: white;
-            font-size: 1.5rem;
-            z-index: 10;
+            transition: all 0.2s ease;
+        }
+        
+        .control-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            opacity: 0.9;
             transition: opacity 0.5s ease;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            backdrop-filter: blur(5px);
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        
+        #info-panel.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        
+        #info-panel h3 {
+            margin-bottom: 8px;
+            color: var(--primary-color);
+        }
+        
+        #info-panel p {
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        #close-info {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        @media (max-width: 768px) {
+            #instructions {
+                top: 10px;
+                font-size: 0.8rem;
+                width: 90%;
+            }
+            
+            #controls {
+                bottom: 10px;
+            }
+            
+            .control-btn {
+                width: 35px;
+                height: 35px;
+            }
+            
+            #info-panel {
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
         }
     </style>
 </head>
 <body>
-
     <div id="loading-overlay">
-        <p>Loading 3D Scene...</p>
+        <div class="spinner"></div>
+        <p class="loading-text">Loading 3D Scene...</p>
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
     </div>
 
     <div id="container"></div>
+    
+    <div id="instructions">
+        Drag to look around • Scroll to zoom • Click on objects to interact
+    </div>
+    
+    <div id="controls">
+        <button class="control-btn" id="reset-view" title="Reset View">↺</button>
+        <button class="control-btn" id="toggle-rotation" title="Toggle Auto Rotation">⟳</button>
+        <button class="control-btn" id="info-btn" title="Information">ℹ</button>
+        <button class="control-btn" id="fullscreen" title="Fullscreen">⛶</button>
+    </div>
+    
+    <div id="info-panel">
+        <button id="close-info">×</button>
+        <h3>About This Experience</h3>
+        <p>This interactive 3D panorama showcases floating text and images in a 360° environment. Explore by dragging to look around, scrolling to zoom, and clicking on objects for interaction.</p>
+        <p>All elements are rendered with Three.js, a powerful WebGL-based 3D library.</p>
+    </div>
 
-    <!-- Import Three.js library -->
+    <!-- Import Three.js library and OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
 
     <script>
         // --- SCENE SETUP ---
-        let scene, camera, renderer;
-        let isUserInteracting = false;
-        let onPointerDownMouseX = 0, onPointerDownMouseY = 0;
-        let lon = 0, onPointerDownLon = 0;
-        let lat = 0, onPointerDownLat = 0;
-        let phi = 0, theta = 0;
-        const clock = new THREE.Clock();
-        const floatingObjects = []; // To store text and images for animation and interaction
+        let scene, camera, renderer, controls;
+        let floatingObjects = []; // To store text and images for animation and interaction
         let particles, raycaster, mouse;
         let intersectedObject = null;
+        let autoRotate = true;
+        let loadingManager;
 
         // --- CUSTOMIZATION ---
         // Replace this with the path to your 360° panoramic image.
@@ -69,116 +255,204 @@
 
         // Add or remove words to display. Now includes a 'color' property.
         const floatingWords = [
-            { text: "Optimistic", position: { x: -20, y: 10, z: -35 }, color: 0xffd700 }, // Gold
-            { text: "Creative", position: { x: 30, y: -2, z: -20 }, color: 0x9932cc }, // Dark Orchid
-            { text: "Serene", position: { x: 28, y: 15, z: 25 }, color: 0x00bfff }, // Deep Sky Blue
-            { text: "Dreamy", position: { x: -15, y: -12, z: 30 }, color: 0xdda0dd }, // Plum
-            { text: "Vibrant", position: { x: -40, y: 0, z: 10 }, color: 0xff4500 }, // Orange Red
-            { text: "Clarity", position: { x: 10, y: 2, z: 38 }, color: 0xf0f8ff }, // Alice Blue
-            { text: "Sight", position: { x: -30, y: -15, z: -25 }, color: 0x7fffd4 }, // Aquamarine
-            { text: "Wonder", position: { x: 5, y: 20, z: -10 }, color: 0x3cddc9 }, // Teal
-            { text: "Peace", position: { x: 40, y: 5, z: 0 }, color: 0x98fb98 }, // Pale Green
+            { text: "Optimistic", position: { x: -20, y: 10, z: -35 }, color: 0xffd700, info: "A positive outlook on future outcomes." }, // Gold
+            { text: "Creative", position: { x: 30, y: -2, z: -20 }, color: 0x9932cc, info: "The ability to generate innovative ideas and solutions." }, // Dark Orchid
+            { text: "Serene", position: { x: 28, y: 15, z: 25 }, color: 0x00bfff, info: "A state of being calm, peaceful, and untroubled." }, // Deep Sky Blue
+            { text: "Dreamy", position: { x: -15, y: -12, z: 30 }, color: 0xdda0dd, info: "Having a magical or pleasantly unreal quality." }, // Plum
+            { text: "Vibrant", position: { x: -40, y: 0, z: 10 }, color: 0xff4500, info: "Full of energy and enthusiasm." }, // Orange Red
+            { text: "Clarity", position: { x: 10, y: 2, z: 38 }, color: 0xf0f8ff, info: "The quality of being clear and easy to understand." }, // Alice Blue
+            { text: "Sight", position: { x: -30, y: -15, z: -25 }, color: 0x7fffd4, info: "The faculty or power of seeing." }, // Aquamarine
+            { text: "Wonder", position: { x: 5, y: 20, z: -10 }, color: 0x3cddc9, info: "A feeling of amazement and admiration." }, // Teal
+            { text: "Peace", position: { x: 40, y: 5, z: 0 }, color: 0x98fb98, info: "Freedom from disturbance; tranquility." }, // Pale Green
         ];
 
         // Add or remove images to display.
         const floatingImages = [
-            { src: 'img1.png', position: { x: 20, y: 8, z: -30 }, size: 12 },
-            { src: 'img2.png', position: { x: -28, y: -8, z: 15 }, size: 15 },
-            { src: 'img3.png', position: { x: 25, y: -15, z: 20 }, size: 10 },
-            { src: 'img4.png', position: { x: -10, y: 18, z: 20 }, size: 11 },
-            { src: 'img5.png', position: { x: 35, y: -10, z: 10 }, size: 13 },
-            { src: 'img6.png', position: { x: -35, y: 5, z: -18 }, size: 14 },
-            { src: 'img7.png', position: { x: 0, y: -18, z: -30 }, size: 12 },
+            { src: 'img1.png', position: { x: 20, y: 8, z: -30 }, size: 12, info: "This represents the concept of exploration." },
+            { src: 'img2.png', position: { x: -28, y: -8, z: 15 }, size: 15, info: "A symbol of creativity and innovation." },
+            { src: 'img3.png', position: { x: 25, y: -15, z: 20 }, size: 10, info: "This image signifies growth and development." },
+            { src: 'img4.png', position: { x: -10, y: 18, z: 20 }, size: 11, info: "Representation of energy and enthusiasm." },
+            { src: 'img5.png', position: { x: 35, y: -10, z: 10 }, size: 13, info: "This symbolizes mystery and imagination." },
+            { src: 'img6.png', position: { x: -35, y: 5, z: -18 }, size: 14, info: "A representation of balance and harmony." },
+            { src: 'img7.png', position: { x: 0, y: -18, z: -30 }, size: 12, info: "This signifies strength and stability." },
         ];
         // -------------------
 
+        // Set up loading manager to track progress
+        loadingManager = new THREE.LoadingManager();
+        loadingManager.onProgress = function(url, loaded, total) {
+            const progressPercent = (loaded / total) * 100;
+            document.getElementById('progress').style.width = `${progressPercent}%`;
+        };
+
+        loadingManager.onLoad = function() {
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    // Hide instructions after 5 seconds
+                    setTimeout(() => {
+                        document.getElementById('instructions').style.opacity = '0';
+                    }, 5000);
+                }, 800);
+            }, 500);
+        };
+
         init();
-        animate();
+        setupEventListeners();
 
         function init() {
             const container = document.getElementById('container');
-            const loadingOverlay = document.getElementById('loading-overlay');
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1100);
+            // Initialize scene
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x000104, 0.009);
 
+            // Initialize camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1100);
+            camera.position.set(0, 0, 0.1);
+
+            // Initialize renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000);
+            container.appendChild(renderer.domElement);
+
+            // Initialize controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.rotateSpeed = 0.5;
+            controls.autoRotate = autoRotate;
+            controls.autoRotateSpeed = 0.5;
+
+            // Set up raycaster for object interaction
             raycaster = new THREE.Raycaster();
             mouse = new THREE.Vector2();
 
+            // Add lights
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
+            
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
             directionalLight.position.set(1, 1, 0).normalize();
             scene.add(directionalLight);
 
+            // Create panorama background
             const geometry = new THREE.SphereGeometry(500, 60, 40);
             geometry.scale(-1, 1, 1);
 
-            const textureLoader = new THREE.TextureLoader();
+            const textureLoader = new THREE.TextureLoader(loadingManager);
             textureLoader.load(panoramaImageUrl, (texture) => {
-                const material = new THREE.MeshBasicMaterial({ map: texture, fog: false });
+                const material = new THREE.MeshBasicMaterial({ 
+                    map: texture, 
+                    fog: false 
+                });
                 const backgroundSphere = new THREE.Mesh(geometry, material);
                 backgroundSphere.renderOrder = -1;
                 scene.add(backgroundSphere);
-                loadingOverlay.style.opacity = '0';
-                setTimeout(() => loadingOverlay.style.display = 'none', 500);
             });
 
-            // --- Particle System ---
-            const particlesGeometry = new THREE.BufferGeometry();
-            const particlesCnt = 5000;
-            const posArray = new Float32Array(particlesCnt * 3);
-            for (let i = 0; i < particlesCnt * 3; i++) {
-                posArray[i] = (Math.random() - 0.5) * (Math.random() * 5) * 100;
-            }
-            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-            const particlesMaterial = new THREE.PointsMaterial({ size: 0.05, color: 0xffffff });
-            particles = new THREE.Points(particlesGeometry, particlesMaterial);
-            scene.add(particles);
+            // Create particle system
+            createParticles();
 
-            const fontLoader = new THREE.FontLoader();
-            fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+            // Load font and create text objects
+            const fontLoader = new THREE.FontLoader(loadingManager);
+            fontLoader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function(font) {
                 floatingWords.forEach(wordObj => {
-                    const textGeometry = new THREE.TextGeometry(wordObj.text, { font: font, size: 4, height: 1, curveSegments: 12, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 5 });
-                    const textMaterial = new THREE.MeshPhongMaterial({ color: wordObj.color, shininess: 90, transparent: true, opacity: 0.95, side: THREE.DoubleSide });
+                    const textGeometry = new THREE.TextGeometry(wordObj.text, { 
+                        font: font, 
+                        size: 4, 
+                        height: 1, 
+                        curveSegments: 12, 
+                        bevelEnabled: true, 
+                        bevelThickness: 0.1, 
+                        bevelSize: 0.1, 
+                        bevelSegments: 5 
+                    });
+                    
+                    const textMaterial = new THREE.MeshPhongMaterial({ 
+                        color: wordObj.color, 
+                        shininess: 90, 
+                        transparent: true, 
+                        opacity: 0.95, 
+                        side: THREE.DoubleSide 
+                    });
+                    
                     const textMesh = new THREE.Mesh(textGeometry, textMaterial);
                     textMesh.position.set(wordObj.position.x, wordObj.position.y, wordObj.position.z);
+                    textMesh.userData = { type: 'text', info: wordObj.info };
+                    
+                    // Center the text
                     textGeometry.computeBoundingBox();
                     const textWidth = textGeometry.boundingBox.max.x - textGeometry.boundingBox.min.x;
                     textMesh.position.x -= textWidth / 2;
+                    
                     scene.add(textMesh);
                     floatingObjects.push(textMesh);
                 });
             });
 
+            // Create image objects
             floatingImages.forEach(imageObj => {
                 textureLoader.load(imageObj.src, (texture) => {
                     const imageGeometry = new THREE.PlaneGeometry(imageObj.size, imageObj.size);
-                    const imageMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide, opacity: 0.9 });
+                    const imageMaterial = new THREE.MeshBasicMaterial({ 
+                        map: texture, 
+                        transparent: true, 
+                        side: THREE.DoubleSide, 
+                        opacity: 0.9 
+                    });
+                    
                     const imageMesh = new THREE.Mesh(imageGeometry, imageMaterial);
                     imageMesh.position.set(imageObj.position.x, imageObj.position.y, imageObj.position.z);
+                    imageMesh.userData = { type: 'image', info: imageObj.info };
+                    
                     scene.add(imageMesh);
                     floatingObjects.push(imageMesh);
                 });
             });
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            container.appendChild(renderer.domElement);
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize, false);
+        }
 
-            container.addEventListener('pointerdown', onPointerDown);
-            container.addEventListener('pointermove', onPointerMove);
-            container.addEventListener('pointerup', onPointerUp);
-            container.addEventListener('wheel', onDocumentMouseWheel, { passive: false });
-            window.addEventListener('resize', onWindowResize);
+        function createParticles() {
+            const particlesGeometry = new THREE.BufferGeometry();
+            const particlesCnt = 5000;
+            const posArray = new Float32Array(particlesCnt * 3);
+            
+            for (let i = 0; i < particlesCnt * 3; i++) {
+                posArray[i] = (Math.random() - 0.5) * (Math.random() * 5) * 100;
+            }
+            
+            particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+            
+            const particlesMaterial = new THREE.PointsMaterial({ 
+                size: 0.05, 
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            particles = new THREE.Points(particlesGeometry, particlesMaterial);
+            scene.add(particles);
+        }
+
+        function setupEventListeners() {
+            // Mouse move for object interaction
             document.addEventListener('mousemove', onMouseMove, false);
-
-            // Add touch events for mobile compatibility
-            container.addEventListener('touchstart', onTouchStart, { passive: false });
-            container.addEventListener('touchmove', onTouchMove, { passive: false });
-            container.addEventListener('touchend', onPointerUp);
+            
+            // Click for object selection
+            document.addEventListener('click', onMouseClick, false);
+            
+            // Control buttons
+            document.getElementById('reset-view').addEventListener('click', resetView);
+            document.getElementById('toggle-rotation').addEventListener('click', toggleRotation);
+            document.getElementById('info-btn').addEventListener('click', toggleInfoPanel);
+            document.getElementById('fullscreen').addEventListener('click', toggleFullscreen);
+            document.getElementById('close-info').addEventListener('click', toggleInfoPanel);
         }
 
         function onWindowResize() {
@@ -187,65 +461,31 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         }
 
-        function onPointerDown(event) {
-            isUserInteracting = true;
-            onPointerDownMouseX = event.clientX;
-            onPointerDownMouseY = event.clientY;
-            onPointerDownLon = lon;
-            onPointerDownLat = lat;
-        }
-
-        function onTouchStart(event) {
-            // Prevent the browser from performing default actions
-            event.preventDefault();
-            
-            // Get the first touch point
-            const touch = event.touches[0];
-
-            isUserInteracting = true;
-            onPointerDownMouseX = touch.clientX;
-            onPointerDownMouseY = touch.clientY;
-            onPointerDownLon = lon;
-            onPointerDownLat = lat;
-        }
-
-        function onPointerMove(event) {
-            if (isUserInteracting === true) {
-                lon = (onPointerDownMouseX - event.clientX) * 0.1 + onPointerDownLon;
-                lat = (event.clientY - onPointerDownMouseY) * 0.1 + onPointerDownLat;
-            }
-        }
-
-        function onTouchMove(event) {
-            // Prevent the browser from performing default actions
-            event.preventDefault();
-
-            if (isUserInteracting === true) {
-                const touch = event.touches[0];
-                lon = (onPointerDownMouseX - touch.clientX) * 0.1 + onPointerDownLon;
-                lat = (touch.clientY - onPointerDownMouseY) * 0.1 + onPointerDownLat;
-            }
-        }
-
-        function onPointerUp() {
-            isUserInteracting = false;
-        }
-
-        function onDocumentMouseWheel(event) {
-            const fov = camera.fov + event.deltaY * 0.05;
-            camera.fov = THREE.MathUtils.clamp(fov, 10, 75);
-            camera.updateProjectionMatrix();
-        }
-
         function onMouseMove(event) {
+            // Calculate mouse position in normalized device coordinates
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            checkIntersections();
+        }
+
+        function onMouseClick() {
+            if (intersectedObject) {
+                // Display info about the clicked object
+                const infoPanel = document.getElementById('info-panel');
+                const infoText = infoPanel.querySelector('p');
+                infoText.textContent = intersectedObject.userData.info;
+                infoPanel.classList.add('visible');
+            }
         }
 
         function checkIntersections() {
+            // Update the picking ray with the camera and mouse position
             raycaster.setFromCamera(mouse, camera);
+            
+            // Calculate objects intersecting the picking ray
             const intersects = raycaster.intersectObjects(floatingObjects);
-
+            
             if (intersects.length > 0) {
                 if (intersectedObject !== intersects[0].object) {
                     // Reset previous object
@@ -255,12 +495,15 @@
                             intersectedObject.material.emissive.setHex(0x000000);
                         }
                     }
+                    
                     // Set new intersected object
                     intersectedObject = intersects[0].object;
                     intersectedObject.scale.set(1.1, 1.1, 1.1);
+                    
                     if (intersectedObject.material.emissive) {
                         intersectedObject.material.emissive.setHex(0x555555);
                     }
+                    
                     document.body.style.cursor = 'pointer';
                 }
             } else {
@@ -271,48 +514,73 @@
                         intersectedObject.material.emissive.setHex(0x000000);
                     }
                 }
+                
                 intersectedObject = null;
                 document.body.style.cursor = 'grab';
             }
         }
 
+        function resetView() {
+            controls.reset();
+        }
+
+        function toggleRotation() {
+            autoRotate = !autoRotate;
+            controls.autoRotate = autoRotate;
+            
+            const button = document.getElementById('toggle-rotation');
+            if (autoRotate) {
+                button.style.backgroundColor = 'rgba(52, 152, 219, 0.3)';
+            } else {
+                button.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            }
+        }
+
+        function toggleInfoPanel() {
+            const infoPanel = document.getElementById('info-panel');
+            infoPanel.classList.toggle('visible');
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable full-screen mode: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
 
         function animate() {
             requestAnimationFrame(animate);
-            update();
-        }
-
-        function update() {
-            const elapsedTime = clock.getElapsedTime();
-            if (!isUserInteracting) {
-                lon += 0.05; // Auto-rotate camera
+            
+            // Update controls
+            controls.update();
+            
+            // Animate particles
+            if (particles) {
+                particles.rotation.y += 0.0005;
             }
-
-            particles.rotation.y = elapsedTime * 0.02;
-
+            
+            // Animate floating objects
+            const time = Date.now() * 0.001;
+            
             floatingObjects.forEach((obj, i) => {
                 const speed = 0.5;
-                obj.position.y += Math.sin(elapsedTime * speed + i) * 0.008;
-                obj.position.x += Math.cos(elapsedTime * speed * 0.8 + i) * 0.004;
+                obj.position.y += Math.sin(time * speed + i) * 0.008;
+                obj.position.x += Math.cos(time * speed * 0.8 + i) * 0.004;
                 obj.rotation.y += 0.0005;
                 obj.rotation.x += 0.0002;
             });
-
-            lat = Math.max(-85, Math.min(85, lat));
-            phi = THREE.MathUtils.degToRad(90 - lat);
-            theta = THREE.MathUtils.degToRad(lon);
-
-            const x = 500 * Math.sin(phi) * Math.cos(theta);
-            const y = 500 * Math.cos(phi);
-            const z = 500 * Math.sin(phi) * Math.sin(theta);
-            camera.lookAt(x, y, z);
             
-            checkIntersections();
-            
+            // Render the scene
             renderer.render(scene, camera);
         }
+
+        // Start the animation loop
+        animate();
     </script>
 </body>
 </html>
-
-
